@@ -1,0 +1,44 @@
+# switchboard.pilot.service — HD-2 pilot unit (#app only, dispatch ON).
+#
+# The operator installs this to make the pilot persistent (survive logout/reboot):
+#   cp tools/switchboard/switchboard.pilot.service ~/.config/systemd/user/switchboard.service
+#   systemctl --user daemon-reload && systemctl --user enable --now switchboard
+#   loginctl enable-linger "$USER"
+#   journalctl --user -u switchboard -f
+#
+# Differs from switchboard.service (the default template) only in ExecStart:
+#   --dispatch on           live: spawns real frontdesk dispatchers
+# `--channels` is deliberately absent (2026-08-19): routes.yaml is the single
+# source of truth for what is listened to. Two lists meant #platform and
+# #product-chat were routed but never heard.
+# Conductor timer (ML-5) stays OFF during the pilot — run /megaloop resume by hand
+# (or !nudge). Prereq: the bot's keybase service for ~/.config/switchboard/
+# kb-workstation must be running (the keybase CLI auto-starts it on first use).
+
+[Unit]
+Description=switchboard listener daemon (megaloop chat front door) — routes.yaml scope
+Documentation=file:%h/agentic-toolkit/switchboard/PROTOCOL.md
+After=network-online.target
+Wants=network-online.target
+# Retry forever: the listener's dependency (the bot's keybase service in its
+# isolated KEYBASE_HOME) comes up asynchronously and may not be logged in at
+# boot. A burst limit here turns a slow dependency into a permanently dead
+# front door. Restarting every 30s costs nothing and is self-healing.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+WatchdogSec=90
+NotifyAccess=main
+
+ExecStart=/usr/bin/env python3 %h/agentic-toolkit/switchboard/switchboardd.py run --dispatch on
+WorkingDirectory=%h/agentic-toolkit/switchboard
+
+Restart=on-failure
+RestartSec=30
+
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target

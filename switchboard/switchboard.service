@@ -1,0 +1,68 @@
+# switchboard.service — systemd USER unit for the switchboard listener daemon (SB-4).
+#
+# Install (per host, as the operator user — NOT root):
+#   mkdir -p ~/.config/systemd/user
+#   cp tools/switchboard/switchboard.service ~/.config/systemd/user/
+#   # edit ExecStart path below if the repo lives elsewhere
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now switchboard
+#   loginctl enable-linger "$USER"     # keep it running after logout / across reboots
+#
+# Status / logs:
+#   systemctl --user status switchboard
+#   journalctl --user -u switchboard -f          # follow
+#   journalctl --user -u switchboard --since -1h
+#
+# ⛔ LIVE-DISPATCH GATE (PROTOCOL §7): this template ships with `--dispatch off`
+#    (dry-run: listen + 👀 ack + dedup + supervision, spawn nothing). Flip to
+#    `--dispatch on` ONLY after the frontdesk skill exists AND the bot has JOINed
+#    the channels it listens to. Do not enable live dispatch before then.
+
+[Unit]
+Description=switchboard listener daemon (megaloop chat front door)
+Documentation=file:%h/agentic-toolkit/switchboard/PROTOCOL.md
+After=network-online.target
+Wants=network-online.target
+# Restart backoff guard (these live in [Unit], not [Service]).
+# Retry forever: the listener's dependency (the bot's keybase service in its
+# isolated KEYBASE_HOME) comes up asynchronously and may not be logged in at
+# boot. A burst limit here turns a slow dependency into a permanently dead
+# front door. Restarting every 30s costs nothing and is self-healing.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+# Watchdog: systemd expects a WATCHDOG=1 ping at least every WatchdogSec; the
+# daemon pings at half this interval (sd_notify, SB-4). If it stalls, systemd
+# kills + restarts it (root of the supervision tree, D7).
+WatchdogSec=90
+NotifyAccess=main
+
+ExecStart=/usr/bin/env python3 %h/agentic-toolkit/switchboard/switchboardd.py run --dispatch off
+WorkingDirectory=%h/agentic-toolkit/switchboard
+
+# Let it crash + come back (D7): restart on any non-clean exit, backoff to avoid
+# hot-looping if keybase/login is wedged.
+Restart=on-failure
+RestartSec=30
+
+# Keybase needs a writable HOME/XDG for the bot's isolated KEYBASE_HOME.
+Environment=PYTHONUNBUFFERED=1
+# The dispatcher + !nudge spawn `claude` and call `keybase`; systemd's user PATH
+# is minimal, so include the operator's local bin (claude installs to ~/.local/bin).
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# --- log rotation ---------------------------------------------------------
+# stdout/stderr go to the systemd journal (journalctl --user -u switchboard).
+# The journal is size-capped centrally; to bound this unit specifically, set in
+# /etc/systemd/journald.conf (system-wide) or rely on SystemMaxUse there. If you
+# instead redirect to a file (StandardOutput=append:%h/.local/state/switchboard.log),
+# add a logrotate stanza, e.g. ~/.config/logrotate.d/switchboard:
+#   %h/.local/state/switchboard.log {
+#     weekly rotate 8 compress missingok notifempty copytruncate
+#   }
+# The per-dispatch transcripts + dispatch-log.jsonl under each campaignDir are
+# append-only and NOT auto-rotated — prune with a periodic tmpfiles.d/find job.
+
+[Install]
+WantedBy=default.target

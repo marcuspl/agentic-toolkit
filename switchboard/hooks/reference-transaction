@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# reference-transaction — hard interlock: refuse updates to a protected branch
+# (master/main) while a switchboard auto-wave incarnation is active.
+#
+# WHY: the megaloop merge rule (operator ruling 2026-07-28) is "the campaign
+# branch is the default merge target; a row branch may land on master ONLY when
+# tested + reviewed — the lane's full suite green ON THE MERGE RESULT and a
+# review pass recorded on the board row, attested with the merge-result SHA in
+# <campaignDir>/.merge-approvals.jsonl. Push is a separate operator gate." A live
+# incident (mac inc=6c9bb4) had an auto-wave merge a row branch straight into
+# LOCAL master. conductor-run.py already DETECTS a moved protected ref after the
+# fact and alerts — this hook turns that into a deterministic BLOCK: git aborts
+# any protected-ref update whose new SHA is not freshly attested, so an
+# unattested merge/commit never lands. Requiring the ATTESTED sha to equal the
+# NEW sha encodes "green on the merge result": the tested commit itself is the
+# only thing allowed to become master. No LLM in the path (§10.4).
+#
+# MECHANISM: git invokes this on every ref transaction with the phase as $1
+# ("prepared" | "committed" | "aborted") and lines "<old-sha> <new-sha> <ref>" on
+# stdin. We reject at the "prepared" phase (before the transaction commits) if any
+# line updates a protected ref AND a fresh `.autowave-active` sentinel exists under
+# <repo>/.claude/*/. The launcher writes that sentinel for the auto-wave's lifetime
+# and removes it on exit; we ignore stale sentinels (>3h) so a crashed launcher
+# can't wedge master permanently.
+#
+# INSTALL (per checkout that runs auto-waves):
+#   ln -sf ../../tools/switchboard/hooks/reference-transaction \
+#          <repo>/.git/hooks/reference-transaction   # if hooks live in-repo, or:
+#   cp reference-transaction <repo>/.git/hooks/ && chmod +x <repo>/.git/hooks/reference-transaction
+# (A symlink into a sibling repo won't resolve; copy for cross-repo checkouts.)
+set -euo pipefail
+
+phase="${1:-}"
+[ "$phase" = "prepared" ] || exit 0   # only veto before the transaction commits
+
+# repo root of the checkout this hook runs in
+repo="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+
+# Is an auto-wave active (fresh sentinel)? 3h staleness guard.
+active=0
+now="$(date +%s)"
+for s in "$repo"/.claude/*/.autowave-active; do
+  [ -e "$s" ] || continue
+  at_ms="$(sed -n 's/.*"at"[[:space:]]*:[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$s" 2>/dev/null | head -1)"
+  if [ -n "$at_ms" ]; then
+    age=$(( now - at_ms/1000 ))
+    [ "$age" -lt 10800 ] && active=1 && break     # < 3h → live
+  else
+    active=1 && break                             # unparseable → fail safe (protect)
+  fi
+done
+[ "$active" = "1" ] || exit 0
+
+# Refuse any UNATTESTED update to a protected branch while auto-wave is active.
+protected='refs/heads/master refs/heads/main'
+while read -r old new ref; do
+  [ -n "${ref:-}" ] || continue
+  case " $protected " in *" $ref "*) : ;; *) continue ;; esac
+  # allow creation (old = zeros) and no-op; a real move needs an attestation
+  zero='0000000000000000000000000000000000000000'
+  if [ "$old" != "$zero" ] && [ "$new" != "$old" ]; then
+    # Tested+reviewed auto-merge path (operator ruling 2026-07-28): allow the
+    # move iff a FRESH line in .claude/*/.merge-approvals.jsonl attests this
+    # exact merge-result SHA ({"row","sha","tested","reviewed","at"}, written
+    # by the conductor AFTER the suite ran green on that commit and the row's
+    # review pass was recorded). Same 3 h staleness guard as the sentinel.
+    approved=0
+    for f in "$repo"/.claude/*/.merge-approvals.jsonl; do
+      [ -e "$f" ] || continue
+      line="$(grep -E "\"sha\"[[:space:]]*:[[:space:]]*\"$new\"" "$f" 2>/dev/null | tail -1 || true)"
+      [ -n "$line" ] || continue
+      # the attestation must actually attest: tested + reviewed non-empty/true
+      printf '%s' "$line" | grep -Eq '"tested"[[:space:]]*:[[:space:]]*(true|"[^"]+")' || continue
+      printf '%s' "$line" | grep -Eq '"reviewed"[[:space:]]*:[[:space:]]*(true|"[^"]+")' || continue
+      at_ms="$(printf '%s' "$line" | sed -n 's/.*"at"[[:space:]]*:[[:space:]]*\([0-9]\{1,\}\).*/\1/p' | head -1)"
+      if [ -n "$at_ms" ] && [ $(( now - at_ms/1000 )) -lt 10800 ]; then
+        approved=1 && break
+      fi
+    done
+    [ "$approved" = "1" ] && continue
+    echo "reference-transaction: REFUSED update to $ref during an active" >&2
+    echo "  switchboard auto-wave. Master merges need the tested+reviewed path:" >&2
+    echo "  full suite green ON THE MERGE RESULT + a review pass on the board row," >&2
+    echo "  attested (with that merge-result SHA) in" >&2
+    echo "  $repo/.claude/<campaign>/.merge-approvals.jsonl BEFORE the ref moves." >&2
+    echo "  Otherwise merge to the campaign branch. If this block is itself wrong," >&2
+    echo "  stop the auto-wave / remove $repo/.claude/*/.autowave-active first." >&2
+    exit 1
+  fi
+done
+exit 0

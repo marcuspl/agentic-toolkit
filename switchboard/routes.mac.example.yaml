@@ -1,0 +1,54 @@
+# routes.mac.example.yaml — laptop switchboard host config template (MAC-1, SB-4).
+# Copy to ~/.config/switchboard/routes.yaml ON THE MAC and fill in.
+# Schema: routes.schema.md   Contract: PROTOCOL.md   Board: ../../.claude/switchboard/BOARD.md
+#
+# ⛔ NOT LIVE. bot_laptop is signed up (SB-0a) but MAC-1 activation happens on
+#    the mac: the bot must be a team member AND JOIN #app-ios, then flip
+#    the launchd plist to `--dispatch on`. Until then this is dry-run only.
+#
+# Channels here are DISJOINT from workstation (D4): the mac owns ONLY #app-ios;
+# workstation owns {app, platform, product-chat}. No channel is listened to by
+# two hosts (no double-processing).
+version: 1
+
+host: laptop
+team: acme_agents
+bot: bot_laptop              # SB-0a account; runs in its own KEYBASE_HOME
+bot_home: ~/.config/switchboard/kb-mac   # isolated keybase home for this bot's daemon
+
+humans:
+  - operator
+  - teammate
+
+approvers:
+  default: [operator]
+  product-question: [operator, teammate]
+
+state_file: ~/.config/switchboard/state.json
+
+defaults:
+  concurrency: 2
+  permission_profile: read-mostly
+  dispatcher_model: null
+  # cron_cadence_min: 30        # supervisor cron-broken threshold is 2× this (SB-5)
+  # dispatcher_timeout_sec: 900 # per-frontdesk timeout before a ⚠️ HD-1 alert
+  # Auto-wave caps — runaway-loop BACKSTOPS, size them ~10x a legitimate day so
+  # they never pause real work (AUTOWAVE_OFF file = instant kill switch; both
+  # reset at midnight). Framework defaults are $15 / 20 runs.
+  # autowave_daily_usd: 150
+  # autowave_max_runs_day: 200
+
+routes:
+  - channel: app-ios     # iOS work + testing noise (magnus doesn't join) — D1
+    mode: dispatch
+    repo: ~/dev/new/app-ios   # <-- set to the actual iOS repo path on this mac
+    campaignDir: .claude/ios-campaign
+    # Gate-class executors (phone-loop spec §2/§5): fired detached by the daemon
+    # on a whitelisted !approve of that gate class. Argv LISTS ({row} is
+    # substituted; strings are refused — no shell interpolation), cwd = repo.
+    # Each script re-validates the on-disk approval itself, so the daemon adds
+    # execution, never authority. Version convention rides here: deploy-gate
+    # cuts are feature releases (--bump minor); fix-and-ship chains --bump patch
+    # inside integrate-and-ship.sh.
+    # ship_command: ["bash", "ios/App/scripts/ship-from-chat.sh", "--row", "{row}", "--bump", "minor"]
+    # integrate_and_ship_command: ["bash", "ios/App/scripts/integrate-and-ship.sh", "--row", "{row}"]
