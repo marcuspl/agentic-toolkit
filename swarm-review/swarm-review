@@ -57,7 +57,7 @@ DEFAULT_ENV_FILES = [
 ]
 # Vendored layout: the API-fallback `providers/` package lives next to this
 # script (tools/swarm-review/providers). Default PIPELINE_DIR to the script's
-# own directory so a fresh clone works without the keybase-only research repo.
+# own directory so a fresh clone is self-contained and needs no other checkout.
 # Override with SWARM_REVIEW_PIPELINE_DIR to point at another providers source.
 PIPELINE_DIR = Path(os.environ.get("SWARM_REVIEW_PIPELINE_DIR",
                                    Path(__file__).resolve().parent))
