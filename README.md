@@ -1,8 +1,8 @@
 # agentic-toolkit
 
 **Four tools for running AI coding agents on real work, plus the diagram of how
-they fit together. They share a doctrine, not a runtime — each is usable without
-the rest.**
+the first three fit together. They share a doctrine, not a runtime — each is
+usable without the rest.**
 
 The doctrine is one sentence: *assume every layer fails, and arrange the layers
 so their failures do not line up.* Everything below is that idea applied at a
