@@ -106,7 +106,7 @@ enforced, D4 — see invariants).
   isolation — the most expensive way to read the least context. Splitting them
   makes capture free and lets triage see the pile.
 
-  *Verbatim is load-bearing.* The first sink (`~/dev/new/resume/raw`) is a
+  *Verbatim is load-bearing.* The first sink (`~/dev/<repo>/raw`) is a
   directory whose README calls it "Marcus's own words, verbatim — source of
   truth, don't edit for polish." A capture that summarised on the way in would
   destroy exactly the property that makes it worth capturing. No LLM is on this

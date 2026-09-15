@@ -153,5 +153,5 @@ don't mention it in the synthesis itself.
 - All errored: for cursor errors, suggest `--backend api` (verified working
   — run `swarm-review --health` to confirm); for API errors, check that keys
   are set in the `.env` the engine loads (`~/code/new/writings/.env` or
-  `~/dev/new/research/.env`). The API fallbacks are version-matched peers
+  `~/dev/<repo>/.env`). The API fallbacks are version-matched peers
   of the cursor models, so nothing is lost on the fallback path.

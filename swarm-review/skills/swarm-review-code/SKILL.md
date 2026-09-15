@@ -149,5 +149,5 @@ don't mention it in the synthesis itself.
 - All errored: for cursor errors, suggest `--backend api` (verified working
   — run `swarm-review --health` to confirm); for API errors, check that keys
   are set in the `.env` the engine loads (`~/code/new/writings/.env` or
-  `~/dev/new/research/.env`). The codex slot maps to the real
+  `~/dev/<repo>/.env`). The codex slot maps to the real
   `openai/gpt-5.3-codex` on the API path, so no specialization is lost.
