@@ -47,13 +47,13 @@ from pathlib import Path
 # ── Config ────────────────────────────────────────────────────────────────────
 
 # DEFAULT_ENV_FILES is the ordered list of .env paths to probe when
-# SWARM_REVIEW_ENV_FILE is unset. The list reflects the operator's
-# canonical locations across machines; the first one that exists wins.
-# Override with SWARM_REVIEW_ENV_FILE=/abs/path/.env to pin a specific
-# file (e.g. for CI, or to test against a sandboxed credential set).
+# SWARM_REVIEW_ENV_FILE is unset; the first one that exists wins. These
+# are conventional fallbacks only — the real location is site-specific,
+# so set SWARM_REVIEW_ENV_FILE=/abs/path/.env to pin a specific file
+# (e.g. for CI, or to test against a sandboxed credential set).
 DEFAULT_ENV_FILES = [
-    Path.home() / "code/new/writings/.env",
-    Path.home() / "dev/new/research/.env",
+    Path.home() / ".config/swarm-review/.env",
+    Path.home() / ".swarm-review.env",
 ]
 # Vendored layout: the API-fallback `providers/` package lives next to this
 # script (tools/swarm-review/providers). Default PIPELINE_DIR to the script's

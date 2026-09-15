@@ -152,6 +152,6 @@ don't mention it in the synthesis itself.
 - Two or three errored → proceed, but warn the user coverage is partial.
 - All errored: for cursor errors, suggest `--backend api` (verified working
   — run `swarm-review --health` to confirm); for API errors, check that keys
-  are set in the `.env` the engine loads (`~/code/new/writings/.env` or
-  `~/dev/<repo>/.env`). The API fallbacks are version-matched peers
+  are set in the `.env` the engine loads (`SWARM_REVIEW_ENV_FILE`, else the
+  `DEFAULT_ENV_FILES` defaults). The API fallbacks are version-matched peers
   of the cursor models, so nothing is lost on the fallback path.

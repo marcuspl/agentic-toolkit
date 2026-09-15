@@ -148,6 +148,6 @@ don't mention it in the synthesis itself.
 - Two or three errored → proceed, but warn the user coverage is partial.
 - All errored: for cursor errors, suggest `--backend api` (verified working
   — run `swarm-review --health` to confirm); for API errors, check that keys
-  are set in the `.env` the engine loads (`~/code/new/writings/.env` or
-  `~/dev/<repo>/.env`). The codex slot maps to the real
+  are set in the `.env` the engine loads (`SWARM_REVIEW_ENV_FILE`, else the
+  `DEFAULT_ENV_FILES` defaults). The codex slot maps to the real
   `openai/gpt-5.3-codex` on the API path, so no specialization is lost.
