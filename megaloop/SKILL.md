@@ -1,6 +1,6 @@
 ---
 name: megaloop
-description: Use this skill to run a big itemized todo campaign where rows are claimed and delegated to sub-agents that implement in isolated worktrees, self-swarm-review, then return branches for the orchestrator to merge — while keeping the main session's context lean because all state lives on disk (BOARD.md) and the per-row work runs in an ephemeral engine, not the conversation. Subcommands: gather (compile the master board from design docs/plans/tech-debt), wave (dispatch the next unblocked, conflict-free set), merge (integrate returned branches), status, gates, resume. Triggers on "/megaloop", "run a megaloop", "start/continue the loop", "gather the board", "run the next wave", "megaloop status".
+description: Use this skill to run a big itemized todo campaign where rows are claimed and delegated to sub-agents that implement in isolated worktrees, review per the campaign's review profile (`swarm`: per-row self-swarm-review; `receipts`: paired build↔verify agents with executable receipts + per-wave UAT — the weekend loop), then return branches for the orchestrator to merge — while keeping the main session's context lean because all state lives on disk (BOARD.md) and the per-row work runs in an ephemeral engine, not the conversation. Subcommands: gather (compile the master board from design docs/plans/tech-debt), wave (dispatch the next unblocked, conflict-free set), merge (integrate returned branches), uat (scene-based acceptance capture → walkthrough), status, gates, resume. Triggers on "/megaloop", "run a megaloop", "start/continue the loop", "gather the board", "run the next wave", "megaloop status", "weekend loop", "run the uat".
 version: 0.1.0
 ---
 
@@ -41,6 +41,45 @@ to this file; read it before `gather` or `wave`.
 - **Never fabricate.** If the engine errors or an agent returns null, report it
   and stop the affected row — don't invent a result.
 
+## Review profiles — where the distrust lives
+
+A campaign declares one review profile in its config (`config.review`, recorded
+in the BOARD header by `gather`). The difference is not whether review exists
+but **at which cadence each kind of proof is bought**:
+
+| cadence | `swarm` (classic) | `receipts` (weekend loop) |
+|---|---|---|
+| every commit | the gate (lint / types / tests) | the same gate — unchanged |
+| every row | multi-model swarm fan-out on the diff | **one verify agent**: fresh context, did not write the code, prompted to *refute*; PASS requires mutation receipts |
+| every wave | — | one integration run on the merged campaign branch + the full UAT assert-sweep, camera off |
+| per campaign | — | `uat release` run, camera on → the walkthrough |
+| blast-radius rows | (same swarm as everything else) | swarm — on the **design doc**, before code exists, operator present |
+
+One line: **every-step opinions become per-cadence proofs.** `swarm` is a
+recall instrument (misses little, floods low-severity findings, slow,
+expensive); `receipts` is a precision instrument that spends the difference on
+execution — because the defects that actually ship are the ones no diff shows.
+Rationale + the pilot's measured economics: `docs/incoming/lightweight-megaloop.md`
+and `docs/incoming/weekend-loop.md` (meta repo).
+
+**The receipts rule (profile `receipts`, non-negotiable):** no agent claim
+counts unless it carries an executable receipt — a mutation (break the
+behaviour, name the test that went red, revert, show clean), a deletion test, a
+live execution (status codes, row counts before/after), or a screenshot **bound
+to an assertion**. A verify PASS must include at least one mutation receipt per
+new requirement id; a claim without a receipt is filed as a **hypothesis**,
+labelled as one. The conductor reviews receipts, not code, and **re-runs one
+receipt per report** — receipts can be gamed by weak mutations; the spot-check
+keeps them honest. Full kinds + file shape: `templates/RECEIPTS.template.md`.
+
+**Blast-radius rubric — swarm iff any of:** PHI schema (first migration) ·
+published identifiers (URLs, object keys, topic names, event schemas) ·
+security or tenancy boundary · money math · **the design doc for any of the
+above** (the cheapest place to be nervous is before the code exists). `gather`
+tags such rows `blast_radius: true`; budget ~1–2 swarm runs per campaign, aimed
+at documents, while the operator is present to rule on findings. Everything
+else: build + verify + wave-integration + UAT.
+
 ## Subcommands
 
 Parse the skill args. First token selects the subcommand; default is `resume`.
@@ -64,11 +103,28 @@ state).
 3. **Dedup + merge** overlapping candidates.
 4. **Sequence into waves** by dependency order and file-set disjointness — rows
    that touch a shared file are serialized, not parallelized (see PROTOCOL).
+   **Register-first:** most repos have shared enumeration surfaces every new
+   component must touch (package lists, lint contracts, compose files, CI
+   matrices, docs tables, DB-creation scripts). Hoist EVERY shared-surface edit
+   into a Wave-0 foundation row that lands all N skeletons + registrations in
+   one commit; after it, domain rows own strictly disjoint directories and run
+   fully parallel. A wave whose rows share a file is not a wave, it is a queue.
 5. **Tag gates.** Every `fleet`/`push`/`deploy` row gets a `gate_class`; flag any
-   `security-crux` rows to hold for careful handling.
-6. **Emit** `BOARD.md` (from `templates/BOARD.template.md`) and, if absent, seed
-   `PROTOCOL.md` and `TECH_DEBT.md` from their templates.
-7. **STOP.** Present the draft board and wait for the operator to approve/edit
+   `security-crux` rows to hold for careful handling. Under profile `receipts`,
+   also tag `blast_radius: true` per the rubric in **Review profiles** — those
+   rows' DESIGN gets the campaign's swarm pass, once, before any code row on
+   them dispatches.
+6. **Scenes (profile `receipts`).** Discover the UAT scene manifests
+   (`<campaignDir>/scenes/`, each declaring `covers: [REQ-…]` and `surfaces:`)
+   and cross them against the board's requirement ids: a requirement no scene
+   covers becomes a scene-buildout row. No scenes yet → seed one `uat`-kind
+   buildout row for the campaign's user-visible surface (and if the campaign has
+   no user-visible surface, note on the board that tier-4 review does not exist
+   here and verify-with-receipts is the outermost check).
+7. **Emit** `BOARD.md` (from `templates/BOARD.template.md`) and, if absent, seed
+   `PROTOCOL.md`, `TECH_DEBT.md` — and, under profile `receipts`,
+   `CAPTURE-RULES.md` — from their templates.
+8. **STOP.** Present the draft board and wait for the operator to approve/edit
    before any wave runs. Gather never dispatches work.
 
 ---
@@ -92,7 +148,7 @@ Dispatch the next set of unblocked, conflict-free rows through the engine.
      scriptPath: "<this skill dir>/engine/wave-runner.mjs",
      args: {
        campaignDir: ".claude/<slug>",
-       config: { baseBranch: "<campaign base>", swarmReviewCmd: "swarm-review --preset code --git-diff --timeout 240", testCmd: "cd go && go test ./...", worktreeSetup: "<fast dep-prep for a cold worktree, e.g. link the main checkout's node_modules — see below>" },
+       config: { baseBranch: "<campaign base>", review: "swarm" | "receipts", swarmReviewCmd: "swarm-review --preset code --git-diff --timeout 240", testCmd: "cd go && go test ./...", worktreeSetup: "<fast dep-prep for a cold worktree, e.g. link the main checkout's node_modules — see below>" },
        rows: [ /* the dispatchable rows, each with an item prompt built from its doc-ref + PROTOCOL contract */ ]
      }
    })
@@ -111,6 +167,28 @@ Dispatch the next set of unblocked, conflict-free rows through the engine.
    next wave until only gated/blocked work remains — at which point surface the
    gate queue and stop.
 
+**Profile `receipts` — paired dispatch instead of per-row swarm:**
+
+- Each row gets a long-lived **build agent** (specs first, CodeScene inline,
+  **commits before verify runs** — a build that commits late and dies leaves
+  nothing on disk) and, on its first green gate, an independent **verify agent**
+  in the same worktree: fresh context, did not write the code, prompted to
+  *refute* — mutation-test at least three claims, sweep for the row's named
+  defect class, confirm every new requirement id has a test that would fail
+  without it. An unprompted "please review" verify is a rubber stamp at the same
+  price. Verify **reports; it does not fix.**
+- **One bounce.** A verify FAIL goes back to the SAME build agent via a message
+  (context intact — a bounce costs a fraction of a respawn; long-lived pairs are
+  the default, not ephemeral one-shots). A second FAIL → the row goes **PARKED**,
+  keeping its worktree and both transcripts. Unattended retries are where
+  budgets die; a parked row is resumed by a human ruling for the cost of one
+  message.
+- Verify PASS → conductor writes `<campaignDir>/receipts/<id>.json` (receipt
+  links included), sets review_verdict `verified`, and spot-checks one receipt.
+- swarm-review is **not** invoked per row. `blast_radius` rows had their design
+  swarm pass before dispatch (`gather` step 5); swarm stays installed for
+  exactly those.
+
 **Waves are resumable across incarnations — do not cram a whole wave into one.**
 The engine commits each row's `megaloop/<id>` branch **before** the slow
 test/review steps (commit-first durability), so an incarnation that runs out of
@@ -125,7 +203,7 @@ dep-prep so a row doesn't spend its whole budget reinstalling before it can
 commit. **If `<campaignDir>/BUILD-RECIPES.md` exists, use its pinned, verified
 `worktreeSetup`/`testCmd`/`baseBranch` for the area the dispatched rows touch —
 do NOT re-derive.** A pinned recipe that's been run beats guessing: a wrong cold
-`npm install` recipe is exactly what blew the first app auto-wave (T2).
+`npm install` recipe is exactly what blew the first true-north auto-wave (T2).
 Only when no recipe file covers the area do you discover it from the repo's
 `package.json`/`Makefile` — and once proven, add it to `BUILD-RECIPES.md` so the
 next incarnation inherits it. Note a copy of `node_modules` can be safer than a
@@ -152,8 +230,9 @@ Conductor-owned, serial.
    (a) **tested** — the lane's FULL suite ran green on the merge RESULT: build
    the merge on a scratch branch off `master`, run `config.testCmd` there (green
    on the row branch pre-merge does not count); and
-   (b) **reviewed** — the row's self-swarm-review pass is recorded on the BOARD
-   row (review_verdict `passed` / `findings-fixed` / `findings-rejected`).
+   (b) **reviewed** — the row's review pass per the campaign's profile is
+   recorded on the BOARD row (review_verdict `passed` / `findings-fixed` /
+   `findings-rejected`, or `verified` under profile `receipts`).
    Then attest BEFORE moving `master`: append one JSON line to
    `<campaignDir>/.merge-approvals.jsonl` —
    `{"row":"<id>","sha":"<merge-result sha>","tested":"<testCmd> green on <sha>",
@@ -167,6 +246,51 @@ Conductor-owned, serial.
    one-line result. Preserve individual branches (per-PR choice later).
 5. Never `git push` or open PRs here — that's a `push` gate. Prod deploy stays a
    `deploy` gate. The auto-merge-to-master path above changes neither.
+6. **Wave close (profile `receipts`):** after ALL of a wave's rows are merged,
+   run the FULL integration suite **once, on the campaign branch** — per-row
+   integration cannot see cross-row breakage, which is the only thing it would
+   buy over the unit gate — then run `uat sweep` (below). A red here stops the
+   next wave, not the current merges.
+
+---
+
+### `uat` — scene-based acceptance capture (profile `receipts`)
+
+The capture **is** the review — but only if it asserts. A capture that
+navigates, clicks and screenshots is a photograph of whatever happened,
+including nothing happening. Every step that claims a state change must assert
+the state changed; the full do/do-not table plus the capture gotchas live in
+`<campaignDir>/CAPTURE-RULES.md` (seeded from
+`templates/CAPTURE-RULES.template.md` — that table is the part an agent
+otherwise gets wrong every single time). A worked demo-scale example:
+`mcp-servers/sentinel-hl7-mcp/demo/ui/uat/capture.py`.
+
+Modes: `uat sweep` (per wave) and `uat release` (campaign close).
+
+1. **Scenes.** The capture is split into scenes (per surface/flow), each owning
+   its assertions and named shots and declaring a manifest — `covers: [REQ-…]`,
+   `surfaces: [services, routes]`. `covers` ties UAT to the spec trace: the
+   walkthrough can cite which screenshot discharges which requirement.
+2. **`uat sweep` — every wave, the full assert-sweep runs, camera off.**
+   Selection never chooses what is *verified* — only what is *photographed*:
+   shoot scenes whose `covers`/`surfaces` intersect the wave's diff, plus,
+   unconditionally, **every scene that fails** (a red assertion with the moment
+   on film is the highest-value artifact this loop produces). The wave artifact
+   is a **delta walkthrough**: changed scenes in full, one line per
+   unchanged-but-verified scene ("public-tier: 9 assertions green, no shots").
+3. **`uat release` — campaign close:** re-run everything camera-on → the release
+   walkthrough (markdown + shots), the operator/client-facing document. Monday
+   reads the **walkthrough first**, board second, parked rows third, receipt
+   spot-checks last.
+4. **A failed assertion fails the run** and is photographed failing — never
+   swallowed into a clean-looking report.
+5. **Flake is deleted or quarantined same-day.** A flaky capture teaches
+   re-running, and a re-run culture is exactly how three consecutive runs once
+   photographed a broken system and reported zero failures. No golden-image
+   pixel diffing — the assertions carry the load.
+6. **UAT needs a user-visible surface.** A library/batch campaign has no tier 4:
+   fall back to verify-with-receipts done properly, and say so on the board
+   rather than pretending a camera helps.
 
 ---
 
@@ -313,7 +437,7 @@ instead of waiting for the end-of-run debrief:
 
 ```
 🔨 wave starting — working on: T16 (export JPEG all-black fix), T18 (open-chat scroll position) · 2 of 4 dispatchable (cap 3/run)
-⟦sb:wavestart inc=3f9a1c host=laptop rows=T16,T18⟧
+⟦sb:wavestart inc=3f9a1c host=macbook rows=T16,T18⟧
 ```
 
 Rules: titles trimmed to ~60 chars; include the left-behind count when the cap
@@ -428,7 +552,7 @@ block (PROTOCOL §11); each line is
      executor. Never infer ship intent from urgency/severity — the approval's
      stated scope must match what the requester literally typed. The gate-queue
      line MUST state the widened scope:
-     `• T9  fix-and-ship → !approve T9 — MERGES megaloop/T9 + SHIPS TestFlight  (operator)`
+     `• T9  fix-and-ship → !approve T9 — MERGES megaloop/T9 + SHIPS TestFlight  (marcusrydberg)`
    - **Version convention (operator, 2026-07-10):** a fix release bumps semver
      PATCH (the fix-and-ship executor passes `--bump patch`); a feature release
      (deploy row batching new features) bumps MINOR (`ship_command` passes
@@ -460,7 +584,7 @@ twice, which is harmless (the marker keeps it out of the dispatch loop).
 
 **Consume** (step 3, before the wave, so rows approved since the last run dispatch
 this incarnation). Scan `<campaignDir>/approvals/*.json` — each is
-`{"id":"T45","approvedBy":"operator","channel":"app","msgId":812,"sentAt":…,"gateClass":"push-gate"}`
+`{"id":"T45","approvedBy":"marcusrydberg","channel":"true-north","msgId":812,"sentAt":…,"gateClass":"push-gate"}`
 (PROTOCOL §6). **Skip `gateClass=fix-and-ship` records entirely** — the daemon
 fires `integrate_and_ship_command` on those the moment they're filed; that
 executor validates and consumes them itself (spec §5). Consuming one here would
@@ -469,8 +593,8 @@ race the executor and could double-release. For every other record:
 1. **RE-VALIDATE the sender** against the approver whitelist *for the row's actual
    gate class* (defense in depth — never trust the record's own claim):
    `push-gate`/`deploy-gate`/`fleet-gate`/`security-crux` → `approvers.default`
-   (`operator`); `product-question` → `approvers.product-question`
-   (`operator`, `teammate`). Also confirm the row's `gate_class` on
+   (`marcusrydberg`); `product-question` → `approvers.product-question`
+   (`marcusrydberg`, `magnus_product`). Also confirm the row's `gate_class` on
    BOARD **matches** the record's `gateClass` (don't let a push approval release a
    product-question row).
 2. **If valid:** release the row **exactly once** — flip BOARD status from `GATED`
@@ -488,7 +612,7 @@ race the executor and could double-release. For every other record:
 **Consume** (step 3b, right after approvals, before the wave). Scan
 `<campaignDir>/control/*.json` — the daemon files one per operator `!retry <id>`
 / `!drop <id>` (deterministic authz against `humans`, no LLM), shaped
-`{"id":"T45","action":"retry","by":"operator","channel":…,"msgId":…,"sentAt":…}`.
+`{"id":"T45","action":"retry","by":"marcusrydberg","channel":…,"msgId":…,"sentAt":…}`.
 For each record:
 
 1. **retry:** if the row exists and its status is a stuck one (`FAILED`,
@@ -512,10 +636,10 @@ wave/merge), grouped by gate class with the approve instruction and who may give
 it (PROTOCOL §8):
 
 ```
-Open gates — app
-• T45  push-gate    → `!approve T45`   (operator)
-• T46  product-question → `!approve T46` (operator / teammate)
-⟦sb:gatequeue host=workstation⟧
+Open gates — true-north
+• T45  push-gate    → `!approve T45`   (marcusrydberg)
+• T46  product-question → `!approve T46` (marcusrydberg / magnus_product)
+⟦sb:gatequeue host=pop-os⟧
 ```
 
 ### ML-2 — end-of-incarnation debrief
@@ -525,12 +649,12 @@ chat" piece. Post **one** message per project channel this incarnation touched,
 summarizing merged / dispatched / failed / open gates (PROTOCOL §8):
 
 ```
-Switchboard debrief — app (incarnation 3f9a1c)
+Switchboard debrief — true-north (incarnation 3f9a1c)
 • merged:      T40, T41
 • dispatched:  T42, T43
 • failed:      T44 (build red — triage)
 • gates:       T45 push-gate → reply `!approve T45`
-⟦sb:debrief inc=3f9a1c host=workstation⟧
+⟦sb:debrief inc=3f9a1c host=pop-os⟧
 ```
 
 `inc` is the `incarnationId` (same as HEARTBEAT); `host` is `SWITCHBOARD_HOST`.

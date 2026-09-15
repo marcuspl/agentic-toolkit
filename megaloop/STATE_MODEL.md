@@ -23,19 +23,23 @@ without operator go-ahead.
 ```
 TODO ─▶ BLOCKED(unmet dep) ─▶ CLAIMED/DISPATCHED ─▶ IN-PROGRESS ─▶ SELF-REVIEW ─▶ RETURNED ─▶ MERGED ─▶ DONE
                                                                         │
-                          off-ramps: GATED · DEFERRED(→TECH_DEBT.md) · WONTFIX · FAILED(triage)
+                          off-ramps: GATED · PARKED(bounce cap) · DEFERRED(→TECH_DEBT.md) · WONTFIX · FAILED(triage)
 ```
 
 - `TODO` — defined, not started.
 - `BLOCKED` — an unmet dep; engine won't dispatch.
 - `CLAIMED`/`DISPATCHED` — an agent owns it (claim recorded in BOARD before spawn).
 - `IN-PROGRESS` — agent working.
-- `SELF-REVIEW` — agent running its own swarm-review + fixes.
+- `SELF-REVIEW` — the row's review step: self-swarm-review (profile `swarm`) or
+  the independent verify agent's refute pass (profile `receipts`).
 - `RETURNED` — branch ready + distilled report; awaiting conductor merge.
 - `MERGED` — integrated into the campaign branch (or `master` via the
   tested+reviewed auto-merge path in SKILL `merge` step 2), green.
 - `DONE` — terminal success (for non-code kinds too).
 - `GATED` — auto-complete as far as possible; parked in the operator-gate queue.
+- `PARKED` — profile `receipts`: verify FAILed twice (the bounce cap). Keeps its
+  worktree and both agent transcripts; resumed by a human ruling for the cost of
+  one message — never by an unattended retry (that is where budgets die).
 - `DEFERRED` — consciously spotted-not-now; moved to `TECH_DEBT.md`.
 - `WONTFIX` — decided against, with reason.
 - `FAILED` — agent errored / couldn't complete; needs triage.
@@ -51,7 +55,7 @@ TODO ─▶ BLOCKED(unmet dep) ─▶ CLAIMED/DISPATCHED ─▶ IN-PROGRESS ─�
 | `security-crux`   | sensitive change to hold for careful handling                  |
 | `secrets/target`  | needs credentials or an external target (e.g. off-host backup) |
 
-## Axis 4 — `review_verdict` (per RETURNED `code` row → swarm/codescene outcome)
+## Axis 4 — `review_verdict` (per RETURNED `code` row → outcome of the profile's review step)
 
 | verdict             | meaning                                                       |
 |---------------------|---------------------------------------------------------------|
@@ -60,3 +64,4 @@ TODO ─▶ BLOCKED(unmet dep) ─▶ CLAIMED/DISPATCHED ─▶ IN-PROGRESS ─�
 | `findings-fixed`    | real findings surfaced and fixed                              |
 | `findings-rejected` | findings consciously rejected — **carries the rationale**     |
 | `codescene-flagged` | a Code Health regression to weigh before merge                |
+| `verified`          | profile `receipts`: verify PASS with mutation receipts on file (`receipts/<id>.json`) |

@@ -1,7 +1,7 @@
 {
   "id": "T45",
-  "approvedBy": "operator",
-  "channel": "app",
+  "approvedBy": "marcusrydberg",
+  "channel": "true-north",
   "msgId": 812,
   "sentAt": 1783480343575,
   "gateClass": "push-gate"

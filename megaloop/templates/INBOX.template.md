@@ -8,5 +8,5 @@ consumed lines). Nothing edits an existing line. `inbId` is monotonic per campai
 (`INB-<n>`; source of `n` = `INBOX.seq`, else max-seen+1).
 
 ```jsonl
-{"inbId":"INB-7","ts":1783480343575,"sender":"operator","channel":"app","msgId":812,"threadRoot":null,"kindGuess":"code","body":"add retry to the uploader"}
+{"inbId":"INB-7","ts":1783480343575,"sender":"marcusrydberg","channel":"true-north","msgId":812,"threadRoot":null,"kindGuess":"code","body":"add retry to the uploader"}
 ```
