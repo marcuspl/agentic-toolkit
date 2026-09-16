@@ -13,7 +13,7 @@ different altitude.
 | **[switchboard](switchboard/)** | Deterministic chat front door. Routes messages to projects, files work, dispatches short-lived agents. No model in the intake path. | you want to start work from your phone without a model deciding what happens first |
 | **[megaloop](megaloop/)** | Durable campaign runner. All state on disk, workers disposable, commit-first ordering, attestation before merge. | you have more work than fits in one session and need it to survive a crash |
 | **[swarm-review](swarm-review/)** | Multi-model review with adjudication. Four models critique, every solo finding is judged and recorded. | you want a second opinion that keeps score of when it was wrong |
-| **[mcp-servers](https://github.com/marcuspl/mcp-servers)** *(separate repo, not published yet — the link 404s until it is)* | The MCP surface. Five Model Context Protocol servers — three Python, two Go — putting cross-agent messaging, a household, multi-model review, a hospital census, and a scheduling API behind typed tools. | you want a model to reach one real system through a narrow, declared surface instead of a shell |
+| **[mcp-servers](https://github.com/marcuspl/mcp-servers)** *(separate repo)* | The MCP surface. Five Model Context Protocol servers — three Python, two Go — putting cross-agent messaging, a household, multi-model review, a hospital census, and a scheduling API behind typed tools. | you want a model to reach one real system through a narrow, declared surface instead of a shell |
 
 **[docs/phone-to-production.html](docs/phone-to-production.html)** — one page
 showing the whole path: a message on a phone, through intake, into a campaign,
