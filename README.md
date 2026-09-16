@@ -75,3 +75,11 @@ docs/           phone-to-production.html
 
 No secrets, hostnames, channel names, or third-party identities appear anywhere
 in this repository. Example configs use placeholder names throughout.
+
+## License
+
+MIT. Use it, fork it, take the ideas.
+
+The companion [mcp-servers](https://github.com/marcuspl/mcp-servers) repo is deliberately
+not MIT — it carries product surface (a hospital census, a scheduling API) and is published
+for evaluation only. This repo is tooling, so it has no reason to be restricted.
