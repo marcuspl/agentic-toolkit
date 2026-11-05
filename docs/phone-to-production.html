@@ -1,0 +1,280 @@
+<title>Phone to Production</title>
+<style>
+  :root {
+    --paper:   #f1f3f3;
+    --surface: #ffffff;
+    --ink:     #111a1c;
+    --muted:   #4d5c5e;
+    --faint:   #74868a;
+    --rule:    #d5dcdc;
+    --accent:  #0d6e63;
+    --amber:   #8f5f10;
+    --brick:   #9c3628;
+    --shadow:  0 1px 2px rgba(17,26,28,.05), 0 8px 24px -18px rgba(17,26,28,.35);
+    --serif: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans:  ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1516; --surface: #141d1e; --ink: #e4eaea; --muted: #a3b2b3;
+      --faint: #849698; --rule: #253133; --accent: #4fbfae; --amber: #d5a052;
+      --brick: #e0806f; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1516; --surface: #141d1e; --ink: #e4eaea; --muted: #a3b2b3;
+    --faint: #849698; --rule: #253133; --accent: #4fbfae; --amber: #d5a052;
+    --brick: #e0806f; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { max-width: 1240px; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--faint); margin: 0 0 .8rem;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(2rem, 5vw, 2.8rem);
+    line-height: 1.1; letter-spacing: -.015em; margin: 0 0 .8rem; text-wrap: balance;
+  }
+  .standfirst { color: var(--muted); max-width: 66ch; margin: 0 0 2.5rem; font-size: 1.05rem; }
+  .standfirst strong { color: var(--ink); }
+
+  figure.flow {
+    margin: 0 0 1rem; background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 4px; box-shadow: var(--shadow); padding: 1.25rem; overflow-x: auto;
+  }
+  figure.flow svg { display: block; min-width: 1180px; max-width: 100%; height: auto; }
+  figcaption {
+    font-family: var(--mono); font-size: .74rem; color: var(--faint);
+    padding: .9rem .3rem 0; line-height: 1.6;
+  }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: .6rem 1.6rem; align-items: center;
+    font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    margin: 1.2rem 0 2.8rem; padding: 0 .2rem;
+  }
+  .legend .sw { display: inline-block; width: 26px; height: 0; border-top: 2.5px solid; vertical-align: middle; margin-right: .5rem; }
+  .legend .sw.dash { border-top-style: dashed; }
+
+  h2 {
+    font-family: var(--serif); font-weight: 600; font-size: 1.4rem;
+    margin: 0 0 1rem; letter-spacing: -.01em;
+  }
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; margin-bottom: 2.6rem; }
+  .rule-card { background: var(--surface); padding: .9rem 1rem; }
+  .rule-card b { display: block; font-family: var(--mono); font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: .35rem; }
+  .rule-card span { font-size: .86rem; color: var(--muted); }
+
+  dl.stages { margin: 0; display: grid; grid-template-columns: 1fr; gap: 1rem 2rem; }
+  @media (min-width: 800px) { dl.stages { grid-template-columns: 1fr 1fr; } }
+  dl.stages > div { border-left: 2px solid var(--rule); padding-left: 1rem; }
+  dt { font-family: var(--mono); font-size: .8rem; color: var(--ink); font-weight: 600; margin-bottom: .25rem; }
+  dd { margin: 0; font-size: .9rem; color: var(--muted); max-width: 58ch; }
+
+  footer {
+    margin-top: 3rem; border-top: 1px solid var(--rule); padding-top: 1rem;
+    font-family: var(--mono); font-size: .72rem; color: var(--faint);
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="shell">
+  <p class="eyebrow">System diagram · Aug 2026</p>
+  <h1>Phone to Production</h1>
+  <p class="standfirst">The complete path a piece of work travels in my pipeline: from a chat
+  message sent on a phone, through triage, an isolated build, independent multi-model review,
+  and a mechanically enforced merge gate, back to a receipt in chat. <strong>Every security
+  transition is deterministic code; no model can approve its own work.</strong></p>
+
+  <figure class="flow">
+    <svg viewBox="0 0 1520 950" role="img" aria-label="Flow diagram: a Keybase message passes through the switchboard daemon and an ephemeral frontdesk agent into a project inbox; megaloop compiles a board and dispatches waves to isolated worktree engines; branches are verified by an independent agent, a four-model review swarm and a CodeScene gate; a git hook blocks merges without a fresh attestation; a debrief returns to chat. Approvals travel a separate deterministic lane; a supervisor watches heartbeat and progress.">
+      <defs>
+        <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+        <marker id="a-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+        </marker>
+        <marker id="a-amb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"/>
+        </marker>
+        <marker id="a-brk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--brick)"/>
+        </marker>
+      </defs>
+
+      <!-- ══ supervision rail ══ -->
+      <text x="40" y="42" font-family="var(--mono)" font-size="11" fill="var(--faint)" letter-spacing="1.5">SUPERVISION — LIVENESS ≠ PROGRESS</text>
+      <rect x="620" y="24" width="170" height="44" rx="3" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+      <text x="705" y="42" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">HEARTBEAT</text>
+      <text x="705" y="58" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">launcher-owned · ~60s</text>
+      <rect x="820" y="24" width="170" height="44" rx="3" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+      <text x="905" y="42" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">PROGRESS</text>
+      <text x="905" y="58" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">agent-owned · per phase</text>
+      <rect x="1050" y="24" width="150" height="44" rx="3" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+      <text x="1125" y="42" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">supervisor</text>
+      <text x="1125" y="58" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">alive + frozen → kill</text>
+      <line x1="790" y1="46" x2="1043" y2="46" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="4 4" marker-end="url(#a-ink)"/>
+      <path d="M1125,68 C1125,120 1030,140 1000,166" fill="none" stroke="var(--brick)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a-brk)"/>
+      <text x="1148" y="120" font-family="var(--mono)" font-size="10.5" fill="var(--brick)">kills stale incarnation, releases lock</text>
+
+      <!-- ══ row A: intake ══ -->
+      <text x="40" y="128" font-family="var(--mono)" font-size="11" fill="var(--faint)" letter-spacing="1.5">1 · INTAKE — NO MODEL UNTIL FRONTDESK</text>
+      <rect x="40" y="146" width="180" height="66" rx="3" fill="none" stroke="currentColor"/>
+      <text x="130" y="172" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">Keybase message</text>
+      <text x="130" y="190" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">from a phone, anywhere</text>
+      <line x1="220" y1="179" x2="292" y2="179" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="300" y="146" width="220" height="66" rx="3" fill="none" stroke="currentColor"/>
+      <text x="410" y="168" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">switchboardd</text>
+      <text x="410" y="185" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">zero-LLM daemon · filter, dedup,</text>
+      <text x="410" y="200" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">sender authz, instant 👀</text>
+      <line x1="520" y1="179" x2="592" y2="179" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <text x="556" y="170" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">spawns</text>
+      <rect x="600" y="146" width="210" height="66" rx="3" fill="none" stroke="currentColor"/>
+      <text x="705" y="168" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">frontdesk</text>
+      <text x="705" y="185" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">ephemeral agent · classifies,</text>
+      <text x="705" y="200" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">takes ONE action, dies</text>
+      <line x1="810" y1="179" x2="882" y2="179" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <text x="846" y="170" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">files work</text>
+      <rect x="890" y="146" width="170" height="66" rx="3" fill="none" stroke="currentColor"/>
+      <text x="975" y="172" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">INBOX.md</text>
+      <text x="975" y="190" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">per project · with receipt</text>
+      <path d="M705,146 C705,96 300,86 160,142" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 4" marker-end="url(#a-ink)"/>
+      <text x="430" y="106" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">answers / receipts posted back ⟦sb:…⟧ — daemon drops own markers (loop guard)</text>
+
+      <!-- ══ approval lane ══ -->
+      <text x="1130" y="128" font-family="var(--mono)" font-size="11" fill="var(--amber)" letter-spacing="1.5">GATE LANE — NO MODEL IN THIS PATH</text>
+      <rect x="1130" y="146" width="160" height="60" rx="3" fill="none" stroke="var(--amber)"/>
+      <text x="1210" y="170" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--amber)">!approve T45</text>
+      <text x="1210" y="187" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">whitelisted sender only</text>
+      <line x1="1290" y1="176" x2="1332" y2="176" stroke="var(--amber)" stroke-width="2" marker-end="url(#a-amb)"/>
+      <rect x="1340" y="146" width="150" height="60" rx="3" fill="none" stroke="var(--amber)"/>
+      <text x="1415" y="170" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="var(--amber)">approvals/T45.json</text>
+      <text x="1415" y="187" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">written atomically</text>
+      <path d="M1415,206 C1415,300 780,300 606,352" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#a-amb)"/>
+      <text x="1075" y="286" font-family="var(--mono)" font-size="10.5" fill="var(--amber)">flips gate_class → approved · persuasive prose is inert by construction</text>
+
+      <!-- ══ row B: campaign ══ -->
+      <text x="40" y="322" font-family="var(--mono)" font-size="11" fill="var(--faint)" letter-spacing="1.5">2 · CAMPAIGN — STATE LIVES ON DISK, CONDUCTOR IS DISPOSABLE</text>
+      <path d="M975,212 C975,260 300,256 148,338" fill="none" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <text x="500" y="248" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">megaloop gather — inbox + design docs + tech debt → rows</text>
+      <rect x="40" y="342" width="180" height="70" rx="3" fill="none" stroke="currentColor"/>
+      <text x="130" y="366" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">gather</text>
+      <text x="130" y="384" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">pre-check: grep master —</text>
+      <text x="130" y="399" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">no dispatching no-ops</text>
+      <line x1="220" y1="377" x2="292" y2="377" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="300" y="342" width="230" height="70" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="415" y="366" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">BOARD.md</text>
+      <text x="415" y="384" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">rows: kind × status × gate_class</text>
+      <text x="415" y="399" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">× review_verdict · ledger appended</text>
+      <line x1="530" y1="377" x2="602" y2="377" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <text x="566" y="368" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">wave</text>
+      <rect x="610" y="336" width="500" height="84" rx="3" fill="none" stroke="currentColor"/>
+      <text x="860" y="358" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">worktree engine — one isolated git worktree per row</text>
+      <rect x="630" y="370" width="120" height="36" rx="2" fill="none" stroke="currentColor" stroke-opacity=".6"/>
+      <text x="690" y="392" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="currentColor">implement</text>
+      <line x1="750" y1="388" x2="782" y2="388" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="790" y="370" width="120" height="36" rx="2" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <text x="850" y="392" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--accent)">commit ◀</text>
+      <line x1="910" y1="388" x2="942" y2="388" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="950" y="370" width="120" height="36" rx="2" fill="none" stroke="currentColor" stroke-opacity=".6"/>
+      <text x="1010" y="392" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="currentColor">tests</text>
+      <text x="850" y="434" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="var(--accent)">durability line — a budget-killed run still leaves a branch the next conductor can recover</text>
+
+      <!-- ══ row C: verification & merge ══ -->
+      <text x="40" y="508" font-family="var(--mono)" font-size="11" fill="var(--faint)" letter-spacing="1.5">3 · VERIFICATION &amp; MERGE — THE IMPLEMENTER NEVER VERIFIES</text>
+      <path d="M860,420 C860,470 320,470 175,524" fill="none" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <text x="470" y="464" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">returned branch</text>
+      <rect x="40" y="528" width="210" height="70" rx="3" fill="none" stroke="currentColor"/>
+      <text x="145" y="551" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">independent verifier</text>
+      <text x="145" y="569" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">second agent — told not to</text>
+      <text x="145" y="584" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">trust the self-review</text>
+      <line x1="250" y1="563" x2="312" y2="563" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="320" y="528" width="230" height="70" rx="3" fill="none" stroke="currentColor"/>
+      <text x="435" y="551" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">swarm-review</text>
+      <text x="435" y="569" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">4 frontier models · disagreement</text>
+      <text x="435" y="584" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">preserved, named per model</text>
+      <rect x="320" y="628" width="230" height="52" rx="3" fill="none" stroke="currentColor" stroke-opacity=".6"/>
+      <text x="435" y="650" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">codescene gate</text>
+      <text x="435" y="666" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">external gauge · optional — never blocks on a vendor</text>
+      <line x1="435" y1="628" x2="435" y2="604" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 4" marker-end="url(#a-ink)"/>
+      <line x1="550" y1="563" x2="622" y2="563" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <text x="586" y="554" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">verdicts</text>
+      <rect x="630" y="528" width="230" height="70" rx="3" fill="none" stroke="var(--amber)"/>
+      <text x="745" y="551" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--amber)">.merge-approvals.jsonl</text>
+      <text x="745" y="569" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">attestation: tested on the merge</text>
+      <text x="745" y="584" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">RESULT + recorded verdict</text>
+      <line x1="860" y1="563" x2="922" y2="563" stroke="var(--amber)" stroke-width="2" marker-end="url(#a-amb)"/>
+      <polygon points="990,522 1058,563 990,604 922,563" fill="none" stroke="var(--amber)" stroke-width="2"/>
+      <text x="990" y="558" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--amber)">git ref-txn</text>
+      <text x="990" y="574" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--amber)">hook</text>
+      <path d="M990,604 C990,650 1080,668 1130,668" fill="none" stroke="var(--brick)" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#a-brk)"/>
+      <text x="1140" y="672" font-family="var(--mono)" font-size="10.5" fill="var(--brick)">no fresh attestation → push BLOCKED</text>
+      <line x1="1058" y1="563" x2="1120" y2="563" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="1128" y="535" width="130" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="1193" y="558" text-anchor="middle" font-family="var(--mono)" font-size="12.5" fill="currentColor">master</text>
+      <text x="1193" y="576" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">rule enforced by git</text>
+      <line x1="1258" y1="563" x2="1320" y2="563" stroke="var(--accent)" stroke-width="2" marker-end="url(#a-acc)"/>
+      <rect x="1328" y="535" width="162" height="56" rx="3" fill="none" stroke="currentColor"/>
+      <text x="1409" y="558" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">debrief → chat</text>
+      <text x="1409" y="576" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">receipt lands on the phone</text>
+
+      <!-- ledger loop -->
+      <path d="M380,598 C360,720 420,742 520,742" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 4" marker-end="url(#a-ink)"/>
+      <rect x="528" y="716" width="250" height="52" rx="3" fill="none" stroke="currentColor" stroke-opacity=".6"/>
+      <text x="653" y="738" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="currentColor">adjudications.tsv</text>
+      <text x="653" y="754" text-anchor="middle" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">solo claims: validated · refuted · taste</text>
+      <path d="M778,742 C880,742 900,660 560,606" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 4" marker-end="url(#a-ink)"/>
+      <text x="836" y="708" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">roster seats earned / evicted on measured precision</text>
+
+      <!-- ══ altitudes strip ══ -->
+      <line x1="40" y1="812" x2="1490" y2="812" stroke="var(--rule)"/>
+      <text x="40" y="842" font-family="var(--mono)" font-size="11" fill="var(--faint)" letter-spacing="1.5">SAME DOCTRINE, OTHER ALTITUDES</text>
+      <rect x="40" y="856" width="440" height="60" rx="3" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+      <text x="60" y="880" font-family="var(--mono)" font-size="12" fill="currentColor">swiss cheese — research</text>
+      <text x="60" y="898" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">parallel explore → sequential cross-review → synthesis → cross-family audit</text>
+      <rect x="520" y="856" width="440" height="60" rx="3" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+      <text x="540" y="880" font-family="var(--mono)" font-size="12" fill="currentColor">true north — consumer</text>
+      <text x="540" y="898" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">one question across four models · cross-review · one synthesized answer, for families</text>
+      <rect x="1000" y="856" width="490" height="60" rx="3" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+      <text x="1020" y="880" font-family="var(--mono)" font-size="12" fill="currentColor">this page — the development altitude</text>
+      <text x="1020" y="898" font-family="var(--sans)" font-size="10.5" fill="var(--muted)">independent error profiles as the quality mechanism, everywhere it appears</text>
+    </svg>
+    <figcaption>One work item, end to end. Teal: the artifact moving. Amber: deterministic
+    gates — no model in the path. Red-brown: block/kill edges. Dashed: telemetry and
+    feedback. Layered defense reduces correlated failure; residual risk remains.</figcaption>
+  </figure>
+
+  <div class="legend" aria-hidden="true">
+    <span><span class="sw" style="color:var(--accent)"></span>work moves</span>
+    <span><span class="sw" style="color:var(--amber)"></span>deterministic gate</span>
+    <span><span class="sw dash" style="color:var(--brick)"></span>block / kill</span>
+    <span><span class="sw dash" style="color:var(--faint)"></span>telemetry / feedback</span>
+  </div>
+
+  <h2>The five rules the diagram keeps obeying</h2>
+  <div class="rules">
+    <div class="rule-card"><b>State on disk</b><span>INBOX.md, BOARD.md, approvals/, attestations — any process can die mid-task and be replaced.</span></div>
+    <div class="rule-card"><b>Deterministic boundaries</b><span>Approval and merge gates are code and git hooks. A model can propose; it cannot cross.</span></div>
+    <div class="rule-card"><b>Independent error profiles</b><span>Implementer ≠ verifier; four models per review; an external gauge that owes the pipeline nothing.</span></div>
+    <div class="rule-card"><b>Measured rosters</b><span>Every solo claim is adjudicated; seats are kept on precision, not reputation.</span></div>
+    <div class="rule-card"><b>Silence is failure</b><span>Heartbeat and progress have different owners; a receipt returns to the phone or something is wrong.</span></div>
+  </div>
+
+  <h2>Stage notes</h2>
+  <dl class="stages">
+    <div><dt>1 · Intake</dt><dd>The daemon holds no model — it filters, deduplicates, checks the sender, acknowledges. The first model in the path lives for exactly one message and can take exactly one action. Real development work is filed, never done on the spot.</dd></div>
+    <div><dt>Gate lane</dt><dd>Approvals are a whitelisted command writing a file atomically. Message content is never an approval signal, so quoted approvals, forwarded text, and persuasive prose are inert by construction.</dd></div>
+    <div><dt>2 · Campaign</dt><dd>Rows are points in a four-axis state space, so "done but needs a human" and "done but the reviewer objected" stay distinguishable. The commit lands before the slow steps — ordering is a reliability feature.</dd></div>
+    <div><dt>3 · Verification &amp; merge</dt><dd>The branch faces an agent instructed to distrust it, then four models whose disagreements are preserved and attributed, then an optional external code-health gauge. The merge itself asks git, not the model, whether a fresh attestation exists.</dd></div>
+  </dl>
+
+  <footer>Marcus Rydberg · artilect.us — mechanism shown, deployment withheld: no hosts, channels, or identities appear on this page.</footer>
+</div>

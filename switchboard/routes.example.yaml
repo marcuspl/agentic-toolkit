@@ -1,0 +1,63 @@
+# routes.example.yaml — committable, value-free template for a switchboard host.
+# Copy to ~/.config/switchboard/routes.yaml and fill in per host.
+# Schema: routes.schema.md   Contract: PROTOCOL.md   Board: ../../.claude/switchboard/BOARD.md
+version: 1
+
+host: <host-label>            # e.g. workstation / laptop — appears in ⟦sb:…host=⟧ markers
+team: acme_agents
+bot: <bot-username>           # bot_workstation / bot_laptop — SB-0a. Until team membership lands, live dispatch is GATED.
+bot_home: ~/.config/switchboard/kb-<host>   # isolated KEYBASE_HOME for this bot's daemon (keybase -H)
+
+humans:                       # free-form dispatch (PROTOCOL §5)
+  - operator
+  - teammate
+
+approvers:                    # who may !approve / control the daemon (PROTOCOL §6)
+  default: [operator]                      # push/deploy/fleet/security + !pause/!resume/!nudge
+  product-question: [operator, teammate]
+
+state_file: ~/.config/switchboard/state.json   # dedup cursor (last msgId per conv)
+
+defaults:
+  concurrency: 2              # max concurrent frontdesk dispatchers (SB-3)
+  permission_profile: read-mostly   # small-task profile; mutating tracked files ⇒ demote to dev-task (FD-3)
+  dispatcher_model: null
+  # --auto-wave safety harness (autowave.py); all optional, shown with defaults
+  autowave_daily_usd: 15.0        # daily $ ceiling → over = downgrade to promotion-only
+  autowave_max_runs_day: 20       # daily auto-wave incarnation cap (hard)
+  autowave_max_rows_per_run: 3    # max rows a single wave incarnation may dispatch
+  # Runaway watchdog — per-INCARNATION backstops (NOT daily limiters). They bound
+  # ONE stuck-looping incarnation, sized many-x the largest real run (T6: ~309
+  # turns, ~1.2 MB, 53 min) so a normal wave never trips them; only a genuine
+  # loop / wedge does. Raise (never lower into real-work range) if a legit run
+  # ever approaches one. conductor-run.py meters the live transcript each beat.
+  autowave_max_turns_per_run: 1500    # assistant events before kill (runaway)
+  autowave_max_transcript_mb: 50      # stream-json transcript size before kill
+  autowave_stall_secs: 1800           # zero transcript output this long = wedged → kill
+
+routes:
+  - channel: <channel>        # topic_name, no '#'
+    mode: dispatch            # dispatch | route | command-only
+    repo: <path>              # cwd for the frontdesk dispatcher (mode=dispatch)
+    campaignDir: .claude/<campaign>   # relative to repo; holds INBOX.md, BOARD.md, approvals/, HEARTBEAT
+
+  - channel: <router-channel>
+    mode: route              # no local repo; classify target + forward (PROTOCOL §5, FD-6)
+    targets:
+      - match: <keyword>
+        via: channel          # forward cross-host by posting `!task` into another channel (D4)
+        channel: <target-channel>
+      - match: <keyword>
+        via: inbox            # or file into a local repo's campaign INBOX
+        repo: <path>
+        campaignDir: .claude/<campaign>
+
+  - channel: <capture-channel>
+    mode: capture            # an inbox, not a front door — append + ack 📥, spawn nothing
+    sink: <path>             # dir for capture-YYYY-MM.md + attachments/; required
+
+# Channels that exist on the team but are deliberately NOT listened to.
+# Invariant #5 makes unlisted channels silent, which is correct but looks
+# identical to "forgotten" from inside the channel — declare the intentional
+# ones here so digest.py's drift check can tell the difference.
+unrouted_ok: [general, <other-hosts-channels>]
