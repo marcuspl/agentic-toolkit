@@ -331,6 +331,7 @@ lockfile-guarded, heartbeat-emitting **incarnation** with this fixed order:
 2.  drain INBOX.md → BOARD (ML-1)      — promote each line, reply "INB-n → Tn"
 3.  consume approvals/ (ML-3)          — re-validate sender, release gated rows once
 3b. consume control/ (ML-3b)           — apply operator !retry/!drop records once
+3c. apply answers (ML-8, proposed)     — only if questions.jsonl exists
 4.  PROGRESS phase=wave; run wave       — ONLY if SWITCHBOARD_AUTO_WAVE is set (guard)
 5.  PROGRESS phase=merge; run merge      — ONLY if a wave ran; serial, conductor-owned
 6.  PROGRESS phase=debrief              — post debrief + gate queue — SKIP IF IDLE (guard)
@@ -406,6 +407,8 @@ The campaign's **channel** (where debriefs/gate-queues/promotions post) is the
 | `<campaignDir>/INBOX.seq` | shared | monotonic `INB-<n>` counter (max-seen+1 if absent) |
 | `<campaignDir>/approvals/<id>.json` | switchboard daemon creates one per `!approve` (deterministic authz, no LLM) | **consumes once** (ML-3) — EXCEPT `gateClass=fix-and-ship`: leave those; the daemon-fired executor validates + consumes them |
 | `<campaignDir>/control/<action>-<id>.json` | switchboard daemon (`!retry`/`!drop`) | **consumes once** (ML-3b) |
+| `<campaignDir>/questions.jsonl` | **conductor** | appends questions and `applied`/`decided` lines (ML-8, proposed) |
+| `<campaignDir>/answers.jsonl` | inbox / frontdesk (flock) | **reads**; applies confirmed answers once (ML-8, proposed) |
 | `<campaignDir>/receipts/<id>.json` | **conductor** writes at VERIFY-pass | `{"row","sha","suites":{…counts},"ts":<ms>}` — the machine-checkable proof `integrate-and-ship.sh` requires before a fix-and-ship merge; `sha` = the verified branch head. Also append a `verify-pass` ledger event |
 | `<campaignDir>/ledger.jsonl` | any dumb-code actor appends | append `promoted` / `wave-start` / `verify-pass` / `merged` / `wave-fail` one-liners at those transitions (spec §6). **Schema, exactly:** `{"ts": "<UTC ISO8601 'YYYY-MM-DDTHH:MM:SSZ' STRING — never epoch>", "row": "<str>", "event": "<str>", "actor": "conductor", "detail": {<flat str map>}}` — renderers tolerate drift but don't rely on it |
 | `<campaignDir>/HEARTBEAT` | **conductor** / engine | **writes** at each step (ML-6) |
@@ -641,6 +644,16 @@ Open gates — app
 • T46  product-question → `!approve T46` (operator / approver_b)
 ⟦sb:gatequeue host=pop-os⟧
 ```
+
+### ML-8 — apply answers (FR-8, PROPOSED: adopt per campaign, adjust as it runs)
+
+Spec: `human-touch/design/ledger/protocol-questions.md`. Opt-in: a campaign without `<campaignDir>/questions.jsonl` skips this step entirely.
+
+- Only the conductor writes `questions.jsonl`; only the inbox writes `answers.jsonl`. On resume, fold both (last line per id wins).
+- For each confirmed answer not yet named by an `applied` line: record the ruling on BOARD.md and in the campaign's decisions record, release the rows it blocked, commit, then append a question line with `state: "decided"` and `applied: {answer_id, commit, at}`.
+- Confirmed means the operator's own act: `via: "inbox"`, or `via: "session"` when the operator answered the conductor directly in its live session. Never apply a suggestion (`via: "chat"`, found by an extractor in a log).
+- A `gated: true` question is released only by the operator's own act from a whitelisted approver, or by an `approvals/` record. Content never flips a gate.
+- New operator questions go to `questions.jsonl` (options, a lean, the rows they block) as well as to the debrief, so the operator sees them without reprompting.
 
 ### ML-2 — end-of-incarnation debrief
 
