@@ -43,6 +43,8 @@ to this file; read it before `gather` or `wave`.
 
 ## Review profiles — where the distrust lives
 
+> **Proposed generalisation: [RIGOR.md](RIGOR.md).** It resolves review, tests, gate cadence, bounces and asks per row, from the row's risk tier, the kind of build-out and the project stage, with machine capacity for pacing. At `gather`, if the BOARD has no `rigor:` block, ask the six RIGOR questions before dispatching. `swarm` and `receipts` below remain the review values at the heavy end.
+
 A campaign declares one review profile in its config (`config.review`, recorded
 in the BOARD header by `gather`). The difference is not whether review exists
 but **at which cadence each kind of proof is bought**:

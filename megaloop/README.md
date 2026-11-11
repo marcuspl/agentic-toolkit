@@ -108,7 +108,10 @@ orphaned-worktree handling is a named gap, not a shipped policy.
   work; automatic rollback.
 - Multi-host synchronization and push — pushing is a separate operator
   gate, and merged-but-unpushed work being invisible across machines is
-  a documented open hole.
+  a documented open hole. The engine still doesn't do it, but
+  [REMOTE_HOST.md](REMOTE_HOST.md) describes the working practice: a
+  bare hub repo on the home box, campaigns and a gate runner on a second
+  machine, and GitHub only for the operator's push of main.
 - General-purpose project management. The board is a dispatch contract,
   not a tracker.
 
