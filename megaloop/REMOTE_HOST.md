@@ -86,8 +86,12 @@ On 2026-11-11 the Linux box went down to 14 GB free. Each per-row cargo target d
 
 ### Share caches by slot, not by row
 
-- **Cargo:** one target dir per **heavy slot**, not per row: `$WT/.target-slot-1`, `.target-slot-2`. A builder that takes slot n builds in target n. With 2 slots that's at most 2 × ~9 GB, whatever the number of rows.
-  - Cargo locks a target dir while it builds, which is why a per-slot dir works and a single shared dir serializes everything.
+- **Cargo:** one target dir per **heavy slot**, not per row: `$WT/.target-slot-1`, `.target-slot-2`.
+  - **A slot dir belongs to one worktree for that row's whole life.** The next row gets it only after the previous row has merged or been parked. Two live worktrees must never share a target dir, even one after the other. Cargo's freshness check for path and workspace crates goes by mtime: when worktree B builds a crate after A, A's next build reuses B's newer artifacts. On 2026-11-11 this happened three times. A test linked the other tree's crate, a fingerprint write failed, and a merge gate compiled against another branch's newer generated code and failed with E0046, a false red.
+  - The cargo lock only serialises builds. It does not keep their outputs apart.
+  - **The conductor's merge gates get their own dir** (`$WT/.target-conductor`).
+  - **A row with no free slot** builds in a private target dir and deletes it when it finishes.
+  - Worst case is about (slots + conductor + one private) × ~9 GB, so 3–4 × 9 GB on Human Touch.
   - Use `sccache` (`RUSTC_WRAPPER=sccache`) so switching branches inside a slot, and across slots, reuses compiled crates.
   - `CARGO_INCREMENTAL=0` keeps the dirs smaller and makes sccache effective.
 - **npm:** the download cache (`~/.npm`) is already shared, but each worktree's `node_modules` is about 400 MB. Install only in worktrees that run web steps, delete it at merge, or move to pnpm, whose store hard-links packages across worktrees.
