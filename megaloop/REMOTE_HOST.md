@@ -141,6 +141,17 @@ They surfaced in the first two days. Expect them in any project developed on Lin
 - **Version drift:** Node on the Mac was 25 while the project assumed 22. Check `node -v` before trusting a comparison.
 - **Name clash on Linux:** `/usr/bin/ht` is TeX4ht. Call the product binary by its absolute path over non-interactive ssh, where PATH is short.
 
+## Linux remote host findings (ws2, 2026-11-12)
+
+The second remote host was a Linux box. What the Mac notes above don't cover:
+
+- **Bot identity:** `kb-lib.sh` defaults to `~/.config/switchboard/kb-workstation` on Linux. On any other Linux host that home doesn't exist, and posts would go out as the operator's own account, which looks like operator control (`Q-n:` and `!pause` only count from the operator). Set `HT_KB_HOME` to that host's bot home in every pane until kb-lib picks it by hostname.
+- **Toolchain:** use rustup, not the distro cargo. `rust-toolchain.toml` components need rustup. Copy the home box's cargo config (mold rustflags) so sccache keys match.
+- **Clone:** a clone made while the hub was unreachable is left empty on `master`. Check out `hub/main` explicitly.
+- **tmux:** an interactive shell rc can `cd` away from the start dir, so `cd` explicitly in each pane.
+- **One gate runner per fleet** until requests can name a runner. Claims are local (`$work/claims/<id>`), so a second runner would run and post every gate twice. Extra hosts take rows and builds, not gates.
+- **Address pinning:** the hub pins each host's key with `from="<ip>"`. Reserve every host's address on the router first. A Mac with a rotating private Wi-Fi address changes IP and gets locked out, so set Private Wi-Fi Address to Fixed. Keep `from=` as IPs and serve A records only for host names, so IPv6 can't slip past.
+
 ## Watching from the home box
 
 - **Wait on Keybase locally, not over ssh.** A small loop reads the latest message id every 60 s through `keybase chat api` and exits on a newer one, after a 30 s pause to collect bursts. Run it in the background and re-arm it after each message.
